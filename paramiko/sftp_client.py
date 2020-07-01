@@ -637,6 +637,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         as ``path``).
 
         :param str path: path to be normalized
+        :param str path_encoding: 编码/解码格式，默认: utf-8
         :return: normalized form of the given path (as a `str`)
 
         :raises: ``IOError`` -- if the path can't be resolved on the server
@@ -661,7 +662,8 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         directory.
 
         :param str path: new current working directory
-        :param str path_encoding: the param ```'path'``` encode format, eg: chdir(path='001中文目录',path_encoding='GB18030')
+        :param str path_encoding: the param ```'path'``` encode format, eg: chdir(path='001中文目录'.encode('GB18030'),path_encoding='GB18030')
+        :param str path_encoding: 当需要跳转的目录路径中包含有中文，而服务器未使用utf-8的编码格式时需要设置此参数，参数值为服务器使用的编码格式，如当服务器使用GB18030的编码格式时，使用实例：chdir(path="/test/中文目录".encode('GB18030'), path_encoding='GB18030')
 
         :raises:
             ``IOError`` -- if the requested path doesn't exist on the server
