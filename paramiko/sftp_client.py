@@ -203,7 +203,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         """
         return self.sock
 
-    def listdir(self, encoding='utf-8', path="."):
+    def listdir(self, path=".", encoding='utf-8', path_encoding='utf-8'):
         """
         Return a list containing the names of the entries in the given
         ``path``.
@@ -213,12 +213,17 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         This method is meant to mirror ``os.listdir`` as closely as possible.
         For a list of full `.SFTPAttributes` objects, see `listdir_attr`.
 
-        :param str encoding: the byte decode format (defauls to ```'utf-8'```)
+        :param str encoding: the byte decode format (defauls to ```'utf-8'```),used to decode filename(under the path) byte ,eg: ```'中文目录'```
+        :param str encoding: 设置服务器中返回byte的解码格式，当服务器返回内容中有使用其他格式编码的内容时（如目录下包含有中文）需要设置此参数，参数值建议为服务器使用的编码格式，如: 'GB180303'编码的中文，此时建议使用方式: listdir_attr(path='/test', encoding='GB18030')
         :param str path: path to list (defaults to ``'.'``)
+        :param str path_encoding: the path parameter encode format (defauls to ```'utf-8'```)，eg: listdir(path='中文目录'.encode('GB18030'), path_encoding='GB18030')
+        :param str path_encoding: 当需要查看的路径path在服务器上的编码格式不是utf-8时需要设置此参数，参数值为服务器所使用的编码格式，如需要查看的路径是'/test/中文路径'，而服务器使用的编码格式是GB18030, 此时就建议如下使用方式: listdir_attr(path="/test/中文路径".encode("GB18030"), path_encoding='GB18030')
         """
-        return [f.filename for f in self.listdir_attr(encoding, path)]
+        if path=='.' and self.getcwd() is not None:
+            path = self.getcwd().encode(path_encoding) if self.getcwd() is not None else '.'
+        return [f.filename for f in self.listdir_attr(path=path, encoding=encoding, path_encoding=path_encoding)]
 
-    def listdir_attr(self, encoding="utf-8", path="."):
+    def listdir_attr(self, path=".", encoding="utf-8", path_encoding='utf-8'):
         """
         Return a list containing `.SFTPAttributes` objects corresponding to
         files in the given ``path``.  The list is in arbitrary order.  It does
@@ -230,12 +235,17 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         attributes, in unix format.  The content of this string will probably
         depend on the SFTP server implementation.
         
-        :param str encoding: the byte decode format (defauls to ```'utf-8'```)
+        :param str encoding: the byte decode format (defauls to ```'utf-8'```),used to decode filename(under the path) byte ,eg: ```'中文目录'```
+        :param str encoding: 设置服务器中返回byte的解码格式，当服务器返回内容中有使用其他格式编码的内容时（如目录下包含有中文）需要设置此参数，参数值建议为服务器使用的编码格式，如: 'GB180303'编码的中文，此时建议使用方式: listdir_attr(path='/test', encoding='GB18030')
         :param str path: path to list (defaults to ``'.'``)
+        :param str path_encoding: the path parameter encode format (defauls to ```'utf-8'```)，eg: listdir_attr(path='中文目录'.encode('GB18030'), path_encoding='GB18030')
+        :param str path_encoding: 当需要查看的路径path在服务器上的编码格式不是utf-8时需要设置此参数，参数值为服务器所使用的编码格式，如需要查看的路径是'/test/中文路径'，而服务器使用的编码格式是GB18030, 此时就建议如下使用方式: listdir_attr(path="/test/中文路径".encode("GB18030"), path_encoding='GB18030')
         :return: list of `.SFTPAttributes` objects
 
         .. versionadded:: 1.2
         """
+        if path=='.' and self.getcwd() is not None:
+            path = self.getcwd().encode(path_encoding)
         path = self._adjust_cwd(path)
         self._log(DEBUG, "listdir({!r})".format(path))
         t, msg = self._request(CMD_OPENDIR, path)
@@ -261,7 +271,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         self._request(CMD_CLOSE, handle)
         return filelist
 
-    def listdir_iter(self, encoding='utf-8', path=".", read_aheads=50):
+    def listdir_iter(self, path=".", read_aheads=50, encoding='utf-8', path_encoding='utf-8'):
         """
         Generator version of `.listdir_attr`.
 
@@ -275,6 +285,8 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
 
         .. versionadded:: 1.15
         """
+        if path=='.' and self.getcwd() is not None:
+            path = self.getcwd().encode(path_encoding)
         path = self._adjust_cwd(path)
         self._log(DEBUG, "listdir({!r})".format(path))
         t, msg = self._request(CMD_OPENDIR, path)
@@ -617,7 +629,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
             raise SFTPError("Readlink returned {} results".format(count))
         return _to_unicode(msg.get_string())
 
-    def normalize(self, path):
+    def normalize(self, path, path_encoding='utf-8'):
         """
         Return the normalized path (on the server) of a given path.  This
         can be used to quickly resolve symbolic links or determine what the
@@ -637,9 +649,9 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         count = msg.get_int()
         if count != 1:
             raise SFTPError("Realpath returned {} results".format(count))
-        return msg.get_text()
+        return msg.get_text(path_encoding)
 
-    def chdir(self, path=None):
+    def chdir(self, path=None, path_encoding='utf-8'):
         """
         Change the "current directory" of this SFTP session.  Since SFTP
         doesn't really have the concept of a current working directory, this is
@@ -649,6 +661,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         directory.
 
         :param str path: new current working directory
+        :param str path_encoding: the param ```'path'``` encode format, eg: chdir(path='001中文目录',path_encoding='GB18030')
 
         :raises:
             ``IOError`` -- if the requested path doesn't exist on the server
@@ -661,7 +674,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         if not stat.S_ISDIR(self.stat(path).st_mode):
             code = errno.ENOTDIR
             raise SFTPError(code, "{}: {}".format(os.strerror(code), path))
-        self._cwd = b(self.normalize(path))
+        self._cwd = b(self.normalize(path_encoding=path_encoding, path=path))
 
     def getcwd(self):
         """
