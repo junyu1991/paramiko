@@ -203,7 +203,7 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         """
         return self.sock
 
-    def listdir(self, path="."):
+    def listdir(self, encoding='utf-8', path="."):
         """
         Return a list containing the names of the entries in the given
         ``path``.
@@ -213,11 +213,12 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         This method is meant to mirror ``os.listdir`` as closely as possible.
         For a list of full `.SFTPAttributes` objects, see `listdir_attr`.
 
+        :param str encoding: the byte decode format (defauls to ```'utf-8'```)
         :param str path: path to list (defaults to ``'.'``)
         """
-        return [f.filename for f in self.listdir_attr(path)]
+        return [f.filename for f in self.listdir_attr(encoding, path)]
 
-    def listdir_attr(self, path="."):
+    def listdir_attr(self, encoding="utf-8", path="."):
         """
         Return a list containing `.SFTPAttributes` objects corresponding to
         files in the given ``path``.  The list is in arbitrary order.  It does
@@ -228,7 +229,8 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
         field: ``longname``, which may contain a formatted string of the file's
         attributes, in unix format.  The content of this string will probably
         depend on the SFTP server implementation.
-
+        
+        :param str encoding: the byte decode format (defauls to ```'utf-8'```)
         :param str path: path to list (defaults to ``'.'``)
         :return: list of `.SFTPAttributes` objects
 
@@ -251,15 +253,15 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
                 raise SFTPError("Expected name response")
             count = msg.get_int()
             for i in range(count):
-                filename = msg.get_text()
-                longname = msg.get_text()
+                filename = msg.get_text(encoding)
+                longname = msg.get_text(encoding)
                 attr = SFTPAttributes._from_msg(msg, filename, longname)
                 if (filename != ".") and (filename != ".."):
                     filelist.append(attr)
         self._request(CMD_CLOSE, handle)
         return filelist
 
-    def listdir_iter(self, path=".", read_aheads=50):
+    def listdir_iter(self, encoding='utf-8', path=".", read_aheads=50):
         """
         Generator version of `.listdir_attr`.
 
@@ -308,8 +310,8 @@ class SFTPClient(BaseSFTP, ClosingContextManager):
                             self._convert_status(msg)
                     count = msg.get_int()
                     for i in range(count):
-                        filename = msg.get_text()
-                        longname = msg.get_text()
+                        filename = msg.get_text(encoding)
+                        longname = msg.get_text(encoding)
                         attr = SFTPAttributes._from_msg(
                             msg, filename, longname
                         )
